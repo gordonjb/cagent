@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CFBundleIdentifier</key>
+        <string>com.plexapp.agents.cagent</string>
+        <key>PlexAgentAttributionText</key>
+        <string>
+            CAGEnt is an agent for the incredible wrestling database, CAGEMATCH.net. CAGEnt will 
+            attempt to match files in Movie libraries against Event entries in the CAGEMATCH 
+            database, providing metadata where possible.
+        </string>
+        <key>PlexFrameworkVersion</key>
+        <string>2</string>
+        <key>PlexPluginClass</key>
+        <string>Agent</string>
+        <key>PlexPluginCodePolicy</key>
+        <string>Elevated</string>
+    </dict>
+</plist>
