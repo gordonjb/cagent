@@ -6,6 +6,7 @@ import urlparse
 from fuzzywuzzy import process
 from bs4 import BeautifulSoup
 from url_loading import simple_get
+from datetime import datetime
 
 # ################### Constants ###################
 AGENT_NAME = "CAGEnt"
@@ -28,10 +29,12 @@ PROMOTION_KEY = "Promotion"
 TYPE_KEY = "Type"
 LOCATION_KEY = "Location"
 ARENA_KEY = "Arena"
-BROADCAST_TYPE_KEY = "Broadcast type"
-BROADCAST_DATE_KEY = "Broadcast date"
-NETWORK_KEY = "TV station/network"
-COMMENTARY_KEY = "Commentary by"
+BROADCAST_TYPE_KEY = "Broadcast type" # Not always present
+BROADCAST_DATE_KEY = "Broadcast date" # Not always present
+NETWORK_KEY = "TV station/network" # Not always present
+COMMENTARY_KEY = "Commentary by" # Not always present
+CARD_KEY = "Card"
+RESULTS_KEY = "Results"
 
 # ################### the scary regex ###################
 # https://regex101.com/r/YgefKe/1
@@ -48,13 +51,20 @@ def get_event_information_dictionary(html):
     :return: dictionary of the event information box
     """
     event_table = html.find("div", {"class": "InformationBoxTable"})
-    keys = [span.get_text().rstrip(':').strip() for span in event_table.find_all(
+    keys = [str(span.get_text().rstrip(':').strip()) for span in event_table.find_all(
         "div", {"class": "InformationBoxTitle"})]
-    values = [span.contents[0] for span in event_table.find_all(
+    values = [get_link_dict(span.contents[0]) for span in event_table.find_all(
         "div", {"class": "InformationBoxContents"})]
     dictionary = dict(zip(keys, values))
     Log.Debug("[" + AGENT_NAME + "] [get_event_information_dictionary] Parsed event dictionary: " + str(dictionary))
     return dictionary
+
+
+def get_link_dict(box_content):
+    if box_content.name == 'a':
+        return {'text': str(box_content.string), 'link': str(box_content.attrs['href'])}
+    else:
+        return {'text': str(box_content)}
 
 
 def parse_search_result_row(table_row):
@@ -74,7 +84,7 @@ def parse_search_result_row(table_row):
             event_link = link
     
     if event_link is not None:
-        event_id = urlparse.parse_qs(urlparse.urlparse(event_link.attrs['href']).query)['nr']
+        event_id = dict(urlparse.parse_qsl(urlparse.urlparse(event_link.attrs['href']).query))['nr']
         return {
             'id': str(event_id),
             'name': str(event_link.string),
@@ -107,7 +117,7 @@ def parse_search_result_counts(html):
     RESULTS_STRING_4 = " items that match the search parameters."
 
     search_results_div = html.find('div', {"class": "TableHeaderOff", "id": "TableHeader"})
-    if search_results_div.string is NO_RESULTS_STRING:
+    if search_results_div.string == NO_RESULTS_STRING:
         search_results = {
             'start': 0,
             'end': 0,
@@ -168,10 +178,14 @@ class Cagent_Movie(Agent.Movies):
             self.search_by_event_id(results, lang, manual_id_match.group(1))
             return
         else:
-            search_input = reg.match(media.name).groupdict()
-            Log.Debug("[" + AGENT_NAME + "] [search] Regex found the following components: " + str(search_input))
+            reg_match = reg.match(media.name)
+            if reg_match is not None:
+                search_input = reg_match.groupdict()
+                Log.Debug("[" + AGENT_NAME + "] [search] Regex found the following components: " + str(search_input))
+            else:
+                search_input = {'name': media.name}
             
-            if search_input['match'] is None:
+            if search_input.get('match') is not None:
                 # Search for a match, to be implemented
                 print("To be implemented")
                 return
@@ -191,6 +205,8 @@ class Cagent_Movie(Agent.Movies):
 
 
     def update_from_event_id(self, metadata, media):
+        event_id = metadata.id
+        is_match = False
         Log.Info("[" + AGENT_NAME + "] [update_from_event_id] Using event ID " + event_id)
         target_url = CM_MAIN_URL + CM_EVENT_URL.format(eventid=event_id)
         Log.Debug("[" + AGENT_NAME + "] [update_from_event_id] Event URL: " + target_url)
@@ -200,33 +216,86 @@ class Cagent_Movie(Agent.Movies):
             dictionary = get_event_information_dictionary(html)
                         
             # Set the event name
-            event_name = str(dictionary[NAME_KEY])
+            event_name = str(dictionary[NAME_KEY]['text'])
             if event_name is not None:
                 metadata.title = event_name
             
             # Set the event date
-            date_str = dictionary[DATE_KEY].get_text()
+            date_str = dictionary.get(BROADCAST_DATE_KEY, dictionary[DATE_KEY])['text']
             if date_str is not None:
                 event_date = datetime.strptime(str(date_str), "%d.%m.%Y")
                 if event_date is not None:
                     metadata.originally_available_at = event_date
 
+            metadata.collections.clear()
             # Set the "studio" (i.e. Promotion)
-            promotion = str(dictionary[PROMOTION_KEY])
+            promotion = str(dictionary[PROMOTION_KEY]['text'])
             if promotion is not None:
                 metadata.studio = promotion
+                if ((is_match and Prefs["addMatchesToPromotionCollection"]) or 
+                   (not is_match and Prefs["addEventsToCollection"])):
+                    metadata.collections.add(promotion)
+
+            if is_match and Prefs["addMatchesToMatchesCollection"]:
+                metadata.collections.add("Matches")
 
             # Set the Cagematch rating if available
-            event_rating = 0 # TODO get rating
-            if event_rating is not None:
+            ratings_divs = html.find_all("div", {"class": "RatingsBoxAdjustedRating"})
+            for div in ratings_divs:
+                if div.string is not None:
+                    event_rating = div.string
+            if event_rating is not None and str(event_rating)!= "---":
                 metadata.rating = float(event_rating)
+                metadata.rating_image = R('rating_1.png')
+
+            # Set the results into the event dictionary
+            result_divs = html.find("div", {"class": "Matches"})
+            event_results = ''
+            for div in result_divs:
+                event_results = event_results + '\n' + str(div.find("div", {"class": "MatchResults"}))
+            dictionary[RESULTS_KEY] = {'text': event_results}
+
+            # Set the card into the event dictionary
+            raw_card_html = simple_get(target_url + CM_EVENT_CARD_PARAM)
+            if raw_card_html is not None:
+                card_html = BeautifulSoup(raw_card_html, 'html.parser')
+                card_divs = card_html.find("div", {"class": "Matches"})
+                event_card = ''
+                for div in card_divs:
+                    event_card = event_card + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
+                dictionary[CARD_KEY] = {'text': event_card}
 
             # Build the summary
+            event_summary = self.build_summary(dictionary)
             if event_summary is not None:
                 metadata.summary = event_summary
         else:
             Log.Error("[" + AGENT_NAME + "] [search_by_event_id] Nothing was returned from request")
-            return
+        return
+    
+
+    def build_summary(self, dict):
+        DEFAULT_FORMAT_STRING = "{name} was an event by {promotion} that took place on {date} from the {arena} in {location}."
+        if Prefs["descriptionType"] == 'Card':
+            card_str = "{card}"
+        elif Prefs["descriptionType"] == 'Results':
+            card_str = "{results}"
+        elif Prefs["descriptionType"] == 'None':
+            card_str = ''
+        format_str = DEFAULT_FORMAT_STRING + card_str
+        return format_str.format(
+            name=dict[NAME_KEY]['text'],
+            promotion=dict[PROMOTION_KEY]['text'],
+            date=dict[DATE_KEY]['text'],
+            arena=dict[ARENA_KEY]['text'],
+            location=dict[LOCATION_KEY]['text'],
+            type=dict[TYPE_KEY]['text'],
+            broadcast_type=dict.get(BROADCAST_TYPE_KEY, {}).get('text', ''),
+            broadcast_date=dict.get(BROADCAST_DATE_KEY, {}).get('text', ''),
+            network=dict.get(NETWORK_KEY, {}).get('text', ''),
+            commentary=dict.get(COMMENTARY_KEY, {}).get('text', ''),
+            card=dict.get(CARD_KEY, {}).get('text', ''),
+            results=dict.get(RESULTS_KEY, {}).get('text', ''))
 
 
     def search_by_event_id(self, results, lang, event_id):
@@ -237,11 +306,11 @@ class Cagent_Movie(Agent.Movies):
         if raw_html is not None:
             html = BeautifulSoup(raw_html, 'html.parser')
             dictionary = get_event_information_dictionary(html)
-            date_str = dictionary[DATE_KEY].get_text()
+            date_str = dictionary[DATE_KEY]['text']
             dd, mm, yyyy = date_str.split(".")
             results.Append(MetadataSearchResult(
                 id=event_id,
-                name=str(dictionary[NAME_KEY]),
+                name=str(dictionary[NAME_KEY]['text']),
                 year=str(int(yyyy)),
                 score=100,
                 lang=lang))
@@ -254,7 +323,7 @@ class Cagent_Movie(Agent.Movies):
         search_str = media.name
         if search_input['name'] is not None:
             search_str = search_input['name']
-            if search_input['prom'] is not None:
+            if search_input.get('prom') is not None:
                 search_str = search_input['prom'] + " " + search_str
 
         safe_url = urllib.quote_plus(search_str)
@@ -265,14 +334,13 @@ class Cagent_Movie(Agent.Movies):
         if raw_html is not None:
             html = BeautifulSoup(raw_html, 'html.parser')
             search_results = parse_search_result_counts(html)
-            if search_results['total'] is 0:
+            if search_results['total'] == 0:
                 Log.Info("[" + AGENT_NAME + "] [search_for_events] No results found.")
                 return
             else:
                 candidates = []
                 # Should find results table
                 table = html.find('table')
-                Log.Debug("[" + AGENT_NAME + "] [dumping_table_text] " + table.text)
                 # Get all rows, dropping the header
                 table_rows = table.find_all('tr', class_=lambda x: x != 'THeaderRow')
                 for table_row in table_rows:
