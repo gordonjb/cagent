@@ -243,7 +243,7 @@ class Cagent_Movie(Agent.Movies):
 
             if is_match and Prefs["addMatchesToMatchesCollection"]:
                 if "Matches" not in collections: collections.append("Matches")
-
+            metadata.collections.clear()
             metadata.collections = collections
 
             # Set the Cagematch rating if available
@@ -271,6 +271,15 @@ class Cagent_Movie(Agent.Movies):
                 for div in card_divs:
                     event_card = event_card + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
                 dictionary[CARD_KEY] = {'text': event_card}
+
+            # Set workers as roles, in future some way to link roles that are same e.g. Dean Ambrose/Jon Moxley
+            all_workers = html.find("div", {"class": "Comments Font9"})
+            worker_list = all_workers.text.split(",")
+            Log.Debug("[" + AGENT_NAME + "] [search_by_event_id] " + str(worker_list))
+            for worker in worker_list:
+                role = metadata.roles.new()
+                role.role = worker
+                role.name = worker
 
             # Build the summary
             event_summary = self.build_summary(dictionary)
