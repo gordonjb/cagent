@@ -227,17 +227,24 @@ class Cagent_Movie(Agent.Movies):
                 if event_date is not None:
                     metadata.originally_available_at = event_date
 
-            metadata.collections.clear()
             # Set the "studio" (i.e. Promotion)
             promotion = str(dictionary[PROMOTION_KEY]['text'])
             if promotion is not None:
                 metadata.studio = promotion
+
+            # Set up collections
+            collections = []
+            if promotion is not None:
                 if ((is_match and Prefs["addMatchesToPromotionCollection"]) or 
                    (not is_match and Prefs["addEventsToCollection"])):
-                    metadata.collections.add(promotion)
+                    if promotion not in collections: 
+                        collections.append(promotion)
+                        Log.Debug("[" + AGENT_NAME + "] [update_from_event_id] added collection")
 
             if is_match and Prefs["addMatchesToMatchesCollection"]:
-                metadata.collections.add("Matches")
+                if "Matches" not in collections: collections.append("Matches")
+
+            metadata.collections = collections
 
             # Set the Cagematch rating if available
             ratings_divs = html.find_all("div", {"class": "RatingsBoxAdjustedRating"})
