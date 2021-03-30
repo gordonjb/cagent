@@ -6,6 +6,7 @@ import urlparse
 from fuzzywuzzy import process
 from bs4 import BeautifulSoup
 from url_loading import simple_get
+from utils import get_date
 from datetime import datetime
 
 # ################### Constants ###################
@@ -18,7 +19,9 @@ AGENT_ACCEPTS_FROM = [ 'com.plexapp.agents.localmedia', 'com.plexapp.agents.open
 # ################### URLs ###################
 CM_MAIN_URL = "https://www.cagematch.net/"
 CM_FROM_YEAR = "1887"
-CM_SEARCH_URL = "?id=1&view=search&sEventName={eventname}&sDateFromDay=01&sDateFromMonth=01&sDateFromYear=" + CM_FROM_YEAR
+CM_SEARCH_URL = "?id=1&view=search&sEventName={eventname}"
+CM_DEFAULT_DATE_PARAMS = "&sDateFromDay=01&sDateFromMonth=01&sDateFromYear=" + CM_FROM_YEAR
+CM_SPECIFIC_DATE_PARAMS = "&sDateFromDay={day}&sDateFromMonth={month}&sDateFromYear={year}&sDateTillDay={day}&sDateTillMonth={month}&sDateTillYear={year}"
 CM_EVENT_URL = "?id=1&nr={eventid}"
 CM_EVENT_CARD_PARAM = "&page=2"
 
@@ -259,7 +262,7 @@ class Cagent_Movie(Agent.Movies):
             result_divs = html.find("div", {"class": "Matches"})
             event_results = ''
             for div in result_divs:
-                event_results = event_results + '\n' + str(div.find("div", {"class": "MatchResults"}))
+                event_results = event_results + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
             dictionary[RESULTS_KEY] = {'text': event_results}
 
             # Set the card into the event dictionary
@@ -275,10 +278,8 @@ class Cagent_Movie(Agent.Movies):
             # Set workers as roles, in future some way to link roles that are same e.g. Dean Ambrose/Jon Moxley
             all_workers = html.find("div", {"class": "Comments Font9"})
             worker_list = all_workers.text.split(",")
-            Log.Debug("[" + AGENT_NAME + "] [search_by_event_id] " + str(worker_list))
             for worker in worker_list:
                 role = metadata.roles.new()
-                role.role = worker
                 role.name = worker
 
             # Build the summary
@@ -342,17 +343,47 @@ class Cagent_Movie(Agent.Movies):
             if search_input.get('prom') is not None:
                 search_str = search_input['prom'] + " " + search_str
 
+        if search_input['date'] is not None:
+            date = get_date(search_input['date'])
+            candidate_events = self.do_event_search(search_str, date)
+            if len(candidate_events) == 0:
+                # If we didn't get any results for a specific date search, 
+                # do a more general one
+                candidate_events = self.do_event_search(search_str)
+        else:
+            candidate_events = self.do_event_search(search_str)
+
+        scored_candidates = process.extract(search_str, [c['name'] for c in candidate_events], limit=len(candidate_events))
+        # Convert scores into a dict so we can do a quick lookup using the event name
+        score_dict = dict(scored_candidates)
+        Log.Debug("[" + AGENT_NAME + "] [search_for_events] Candidate scores: " + str(score_dict))
+        # TODO do some scoring modification for date matches: promotion match and date match
+        for candidate in candidate_events:
+            Log.Debug("[" + AGENT_NAME + "] [search_for_events] Adding candidate: " + str(candidate))
+            results.Append(MetadataSearchResult(
+                id=candidate['id'],
+                name=candidate['name'],
+                year=candidate['year'],
+                score=score_dict[candidate['name']],
+                lang=lang))
+        return
+
+
+    def do_event_search(self, search_str, date=None):
         safe_url = urllib.quote_plus(search_str)
         target_url = CM_MAIN_URL + CM_SEARCH_URL.format(eventname=safe_url)
-        Log.Info("[" + AGENT_NAME + "] [search_for_events] Performing search with string \"" + search_str + "\"")
-        Log.Debug("[" + AGENT_NAME + "] [search_for_events] Search URL: " + target_url)
+        if date is not None:
+            target_url = target_url + CM_SPECIFIC_DATE_PARAMS.format(day=date.day,month=date.month,year=date.year)
+        else:
+            target_url = target_url + CM_DEFAULT_DATE_PARAMS
+        Log.Info("[" + AGENT_NAME + "] [do_event_search] Performing search with string \"" + search_str + "\"")
+        Log.Debug("[" + AGENT_NAME + "] [do_event_search] Search URL: " + target_url)
         raw_html = simple_get(target_url)
         if raw_html is not None:
             html = BeautifulSoup(raw_html, 'html.parser')
             search_results = parse_search_result_counts(html)
             if search_results['total'] == 0:
-                Log.Info("[" + AGENT_NAME + "] [search_for_events] No results found.")
-                return
+                Log.Info("[" + AGENT_NAME + "] [do_event_search] No results found.")
             else:
                 candidates = []
                 # Should find results table
@@ -363,20 +394,8 @@ class Cagent_Movie(Agent.Movies):
                     candidate = parse_search_result_row(table_row)
                     if candidate is not None:
                         candidates.append(candidate)
-
-                scored_candidates = process.extract(search_str, [c['name'] for c in candidates], limit=len(candidates))
-                # Convert scores into a dict so we can do a quick lookup using the event name
-                score_dict = dict(scored_candidates)
-                Log.Debug("[" + AGENT_NAME + "] [search_for_events] Candidate scores: " + str(score_dict))
-                for candidate in candidates:
-                    Log.Debug("[" + AGENT_NAME + "] [search_for_events] Adding candidate: " + str(candidate))
-                    results.Append(MetadataSearchResult(
-                        id=candidate['id'],
-                        name=candidate['name'],
-                        year=candidate['year'],
-                        score=score_dict[candidate['name']],
-                        lang=lang))
-                return
+                return candidates
         else:
-            Log.Error("[" + AGENT_NAME + "] [search_for_events] Nothing was returned from request")
-            return
+            Log.Error("[" + AGENT_NAME + "] [do_event_search] Nothing was returned from request")
+            
+        return []
