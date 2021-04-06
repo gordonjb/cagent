@@ -9,7 +9,7 @@ from url_loading import simple_get
 from utils import get_date
 from datetime import datetime
 
-# ################### Constants ###################
+# ################### Agent Constants ###################
 AGENT_NAME = "CAGEnt"
 AGENT_VERSION = "v0.1.0"
 AGENT_LANGUAGES = [Locale.Language.English]
@@ -38,11 +38,17 @@ NETWORK_KEY = "TV station/network" # Not always present
 COMMENTARY_KEY = "Commentary by" # Not always present
 CARD_KEY = "Card"
 RESULTS_KEY = "Results"
+MATCH_KEY = "Match"
 
 # ################### the scary regex ###################
 # https://regex101.com/r/YgefKe/1
 FILENAME_REGEX = "(?:(?=^\d{4})|(?P<prom>.+?)(?:(?= [^-]) |(?= - ) - ))(?P<date>(?:\d{4})(?: |-|.)(?:(?:0[1-9])|(?:1[0-2]))(?: |-|.)(?:(?:0[1-9])|(?:1[0-9])|(?:2[0-9])|(?:3[0-1])))(?:(?= M | - M - )(?P<match> M | - M - )|(?! M | - M - )(?:(?= [^-]) |(?= - ) - ))(?P<name>.+)"
 reg = re.compile(FILENAME_REGEX)
+
+
+# ################### Other Cagematch constants ###################
+FREELANCE_STRINGS = ['Wrestling In Mexiko - Freelance Shows', 'Wrestling In Europa - Freelance Shows', 'Wrestling In Japan - Freelance Shows', 'Wrestling In Canada - Freelance Shows', 'Wrestling In Australia - Freelance Shows', 'Wrestling In The USA - Freelance Shows', 'Wrestling Im Rest der Welt - Freelance Shows']
+
 
 def get_event_information_dictionary(html):
     """
@@ -139,6 +145,10 @@ def parse_search_result_counts(html):
     return search_results
 
 
+def format_match_name_for_candidate(match, event, year, month, day):
+    return match + " @ " + event + " - " + year + month + day
+
+
 class Cagent_Movie(Agent.Movies):
     """
     Agent class to match wrestling shows as Movie library items.
@@ -176,9 +186,9 @@ class Cagent_Movie(Agent.Movies):
     """
     def search(self, results, media, lang, manual):
         Log.Info("[" + AGENT_NAME + "] [search] Searching for \"" + media.name + "\"")
-        manual_id_match = re.match(r'^cm-id:([0-9]+)$', str(media.name))
+        manual_id_match = re.match(r'^cm-id:([0-9:]+)$', str(media.name))
         if manual_id_match:
-            self.search_by_event_id(results, lang, manual_id_match.group(1))
+            self.search_by_cm_id(results, lang, manual_id_match.group(1))
             return
         else:
             reg_match = reg.match(media.name)
@@ -188,9 +198,8 @@ class Cagent_Movie(Agent.Movies):
             else:
                 search_input = {'name': media.name}
             
-            if search_input.get('match') is not None:
-                # Search for a match, to be implemented
-                print("To be implemented")
+            if 'match' in search_input:
+                self.search_for_matches(results, media, lang, search_input)
                 return
             else:
                 # Search for an event
@@ -200,29 +209,22 @@ class Cagent_Movie(Agent.Movies):
 
     def update(self, metadata, media, lang, force):
         Log.Info("[" + AGENT_NAME + "] [update] Updating item with ID: " + metadata.id)
-        #if is event id
-        self.update_from_event_id(metadata, media)
-        # else if match id
-        # self.update_from_match_id(metadata, media)
-        return
-
-
-    def update_from_event_id(self, metadata, media):
-        event_id = metadata.id
         is_match = False
-        Log.Info("[" + AGENT_NAME + "] [update_from_event_id] Using event ID " + event_id)
+        if ":" in metadata.id:
+            event_id, match_id = metadata.id.split(":")
+            is_match = True
+        else:
+            event_id = metadata.id
+        Log.Info("[" + AGENT_NAME + "] [update] Using event ID " + event_id)
         target_url = CM_MAIN_URL + CM_EVENT_URL.format(eventid=event_id)
-        Log.Debug("[" + AGENT_NAME + "] [update_from_event_id] Event URL: " + target_url)
+        Log.Debug("[" + AGENT_NAME + "] [update] Event URL: " + target_url)
         raw_html = simple_get(target_url)
         if raw_html is not None:
             html = BeautifulSoup(raw_html, 'html.parser')
             dictionary = get_event_information_dictionary(html)
-                        
-            # Set the event name
-            event_name = str(dictionary[NAME_KEY]['text'])
-            if event_name is not None:
-                metadata.title = event_name
-            
+
+            # First do the things that are common between events and matches
+            Log.Debug("[" + AGENT_NAME + "] [update] Setting common metadata")
             # Set the event date
             date_str = dictionary.get(BROADCAST_DATE_KEY, dictionary[DATE_KEY])['text']
             if date_str is not None:
@@ -232,67 +234,115 @@ class Cagent_Movie(Agent.Movies):
 
             # Set the "studio" (i.e. Promotion)
             promotion = str(dictionary[PROMOTION_KEY]['text'])
-            if promotion is not None:
+            if promotion is not None and promotion not in FREELANCE_STRINGS:
                 metadata.studio = promotion
 
             # Set up collections
             collections = []
-            if promotion is not None:
+            if promotion is not None and promotion not in FREELANCE_STRINGS:
                 if ((is_match and Prefs["addMatchesToPromotionCollection"]) or 
-                   (not is_match and Prefs["addEventsToCollection"])):
+                    (not is_match and Prefs["addEventsToCollection"])):
                     if promotion not in collections: 
                         collections.append(promotion)
-                        Log.Debug("[" + AGENT_NAME + "] [update_from_event_id] added collection")
 
             if is_match and Prefs["addMatchesToMatchesCollection"]:
-                if "Matches" not in collections: collections.append("Matches")
+                if "Matches" not in collections: 
+                    collections.append("Matches")
+
             metadata.collections.clear()
             metadata.collections = collections
 
-            # Set the Cagematch rating if available
-            ratings_divs = html.find_all("div", {"class": "RatingsBoxAdjustedRating"})
-            for div in ratings_divs:
-                if div.string is not None:
-                    event_rating = div.string
-            if event_rating is not None and str(event_rating)!= "---":
-                metadata.rating = float(event_rating)
-                metadata.rating_image = R('rating_1.png')
+            if is_match:
+                Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] Setting match specific metadata")
+                match_idx = int(match_id) - 1
+                # For matches, use the match card to get the title and set it into the dictionary
+                raw_card_html = simple_get(target_url + CM_EVENT_CARD_PARAM)
+                if raw_card_html is not None:
+                    card_html = BeautifulSoup(raw_card_html, 'html.parser')
+                    card_divs = card_html.find("div", {"class": "Matches"})
+                    if match_idx < len(card_divs):
+                        match_name = str(card_divs.contents[match_idx].find("div", {"class": "MatchResults"}).text)
+                        metadata.title = match_name
+                        dictionary[MATCH_KEY] = {'text': match_name}
+                
+                # Set the Cagematch rating if available
+                ratings_divs = html.find_all("div", {"class": "RatingsBoxAdjustedRating"})
+                result_divs = html.find("div", {"class": "Matches"})
+                if match_idx < len(result_divs):
+                    result_text = result_divs.contents[match_idx].find("div", {"class": "MatchRecommendedLine"}).text
+                    prefix = ':::: Matchguide Rating: '
+                    if result_text.startswith(prefix):
+                        event_rating = result_text[len(prefix):result_text.index(' based on')]
+                        metadata.rating = float(event_rating)
+                    else:
+                        Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] No rating for match")
 
-            # Set the results into the event dictionary
-            result_divs = html.find("div", {"class": "Matches"})
-            event_results = ''
-            for div in result_divs:
-                event_results = event_results + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
-            dictionary[RESULTS_KEY] = {'text': event_results}
+                # Set workers as roles, in future some way to link roles that are same e.g. Dean Ambrose/Jon Moxley
+                metadata.roles.clear()
+                all_workers = html.find("div", {"class": "Comments Font9"})
+                worker_list = [w.strip() for w in all_workers.text.split(",")]
+                match_text = dictionary.get(MATCH_KEY, {}).get('text', '')
+                for worker in worker_list:
+                    # Only add workers in this match, do this the naiive way:
+                    if worker in match_text:
+                        Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] Setting roles: worker " + worker + " match " + match_text)
+                        role = metadata.roles.new()
+                        role.name = worker
+                
+                # Build the summary
+                match_summary = self.build_match_summary(dictionary)
+                if match_summary is not None:
+                    metadata.summary = match_summary
+            else:
+                Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] Setting event specific metadata")
+                # Set the event name
+                event_name = str(dictionary[NAME_KEY]['text'])
+                if event_name is not None:
+                    metadata.title = event_name
 
-            # Set the card into the event dictionary
-            raw_card_html = simple_get(target_url + CM_EVENT_CARD_PARAM)
-            if raw_card_html is not None:
-                card_html = BeautifulSoup(raw_card_html, 'html.parser')
-                card_divs = card_html.find("div", {"class": "Matches"})
-                event_card = ''
-                for div in card_divs:
-                    event_card = event_card + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
-                dictionary[CARD_KEY] = {'text': event_card}
+                # Set the Cagematch rating if available
+                ratings_divs = html.find_all("div", {"class": "RatingsBoxAdjustedRating"})
+                for div in ratings_divs:
+                    if div.string is not None:
+                        event_rating = div.string
+                        if event_rating is not None and str(event_rating) != "---":
+                            metadata.rating = float(event_rating)
 
-            # Set workers as roles, in future some way to link roles that are same e.g. Dean Ambrose/Jon Moxley
-            all_workers = html.find("div", {"class": "Comments Font9"})
-            worker_list = all_workers.text.split(",")
-            for worker in worker_list:
-                role = metadata.roles.new()
-                role.name = worker
+                # Set the results into the event dictionary
+                result_divs = html.find("div", {"class": "Matches"})
+                event_results = ''
+                for div in result_divs:
+                    event_results = event_results + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
+                dictionary[RESULTS_KEY] = {'text': event_results}
 
-            # Build the summary
-            event_summary = self.build_summary(dictionary)
-            if event_summary is not None:
-                metadata.summary = event_summary
+                # Set the card into the event dictionary
+                raw_card_html = simple_get(target_url + CM_EVENT_CARD_PARAM)
+                if raw_card_html is not None:
+                    card_html = BeautifulSoup(raw_card_html, 'html.parser')
+                    card_divs = card_html.find("div", {"class": "Matches"})
+                    event_card = ''
+                    for div in card_divs:
+                        event_card = event_card + '\n' + str(div.find("div", {"class": "MatchResults"}).text)
+                    dictionary[CARD_KEY] = {'text': event_card}
+
+                # Set workers as roles, in future some way to link roles that are same e.g. Dean Ambrose/Jon Moxley
+                all_workers = html.find("div", {"class": "Comments Font9"})
+                worker_list = [w.strip() for w in all_workers.text.split(",")]
+                for worker in worker_list:
+                    role = metadata.roles.new()
+                    role.name = worker
+                
+                # Build the summary
+                event_summary = self.build_event_summary(dictionary)
+                if event_summary is not None:
+                    metadata.summary = event_summary
         else:
-            Log.Error("[" + AGENT_NAME + "] [search_by_event_id] Nothing was returned from request")
+            Log.Error("[" + AGENT_NAME + "] [update] Nothing was returned from request")
         return
     
 
-    def build_summary(self, dict):
-        DEFAULT_FORMAT_STRING = "{name} was an event by {promotion} that took place on {date} from the {arena} in {location}."
+    def build_event_summary(self, dict):
+        DEFAULT_FORMAT_STRING = "{name} was an event {promotion} that took place on {date} from the {arena} in {location}."
         if Prefs["descriptionType"] == 'Card':
             card_str = "{card}"
         elif Prefs["descriptionType"] == 'Results':
@@ -300,9 +350,12 @@ class Cagent_Movie(Agent.Movies):
         elif Prefs["descriptionType"] == 'None':
             card_str = ''
         format_str = DEFAULT_FORMAT_STRING + card_str
+        promotion_text = ''
+        if dict[PROMOTION_KEY]['text'] not in FREELANCE_STRINGS:
+            promotion_text  = 'by ' + dict[PROMOTION_KEY]['text']
         return format_str.format(
             name=dict[NAME_KEY]['text'],
-            promotion=dict[PROMOTION_KEY]['text'],
+            promotion=promotion_text,
             date=dict[DATE_KEY]['text'],
             arena=dict[ARENA_KEY]['text'],
             location=dict[LOCATION_KEY]['text'],
@@ -315,35 +368,71 @@ class Cagent_Movie(Agent.Movies):
             results=dict.get(RESULTS_KEY, {}).get('text', ''))
 
 
-    def search_by_event_id(self, results, lang, event_id):
-        Log.Info("[" + AGENT_NAME + "] [search_by_event_id] Using event ID " + event_id)
-        target_url = CM_MAIN_URL + CM_EVENT_URL.format(eventid=event_id)
-        Log.Debug("[" + AGENT_NAME + "] [search_by_event_id] Event URL: " + target_url)
+    def build_match_summary(self, dict):
+        DEFAULT_FORMAT_STRING = "{match_name} was a match at {name}, an event {promotion} that took place on {date} from the {arena} in {location}."
+        format_str = DEFAULT_FORMAT_STRING
+        promotion_text = ''
+        if dict[PROMOTION_KEY]['text'] not in FREELANCE_STRINGS:
+            promotion_text  = 'by ' + dict[PROMOTION_KEY]['text']
+        return format_str.format(
+            name=dict[NAME_KEY]['text'],
+            promotion=promotion_text,
+            date=dict[DATE_KEY]['text'],
+            arena=dict[ARENA_KEY]['text'],
+            location=dict[LOCATION_KEY]['text'],
+            type=dict[TYPE_KEY]['text'],
+            broadcast_type=dict.get(BROADCAST_TYPE_KEY, {}).get('text', ''),
+            broadcast_date=dict.get(BROADCAST_DATE_KEY, {}).get('text', ''),
+            network=dict.get(NETWORK_KEY, {}).get('text', ''),
+            commentary=dict.get(COMMENTARY_KEY, {}).get('text', ''),
+            match_name=dict.get(MATCH_KEY, {}).get('text', ''))
+
+
+    # Request card page, and either return a single candidate: either the event information or the information for a specific match
+    def search_by_cm_id(self, results, lang, cm_id):
+        Log.Info("[" + AGENT_NAME + "] [search_by_cm_id] Using CAGEMATCH ID " + cm_id)
+        event_id = None
+        match_id = None
+        if ":" in cm_id:
+            event_id, match_id = cm_id.split(":")
+        else:
+            event_id = cm_id
+        target_url = CM_MAIN_URL + CM_EVENT_URL.format(eventid=event_id) + CM_EVENT_CARD_PARAM
+        Log.Debug("[" + AGENT_NAME + "] [search_by_cm_id] Event URL: " + target_url)
         raw_html = simple_get(target_url)
         if raw_html is not None:
             html = BeautifulSoup(raw_html, 'html.parser')
             dictionary = get_event_information_dictionary(html)
             date_str = dictionary[DATE_KEY]['text']
             dd, mm, yyyy = date_str.split(".")
+            name = str(dictionary[NAME_KEY]['text'])
+            if match_id is not None:
+                card_divs = html.find("div", {"class": "Matches"})
+                match_idx = int(match_id) - 1
+                if match_idx < len(card_divs):
+                    name = format_match_name_for_candidate(
+                        str(card_divs.contents[match_idx].find("div", {"class": "MatchResults"}).text),
+                        name, yyyy, mm, dd)
+
             results.Append(MetadataSearchResult(
-                id=event_id,
-                name=str(dictionary[NAME_KEY]['text']),
+                id=cm_id,
+                name=name,
                 year=str(int(yyyy)),
                 score=100,
                 lang=lang))
         else:
-            Log.Error("[" + AGENT_NAME + "] [search_by_event_id] Nothing was returned from request")
+            Log.Error("[" + AGENT_NAME + "] [search_by_cm_id] Nothing was returned from request")
             return
 
     
     def search_for_events(self, results, media, lang, search_input):
         search_str = media.name
-        if search_input['name'] is not None:
+        if 'name' in search_input:
             search_str = search_input['name']
-            if search_input.get('prom') is not None:
+            if 'prom' in search_input:
                 search_str = search_input['prom'] + " " + search_str
 
-        if search_input['date'] is not None:
+        if 'date' in search_input:
             date = get_date(search_input['date'])
             candidate_events = self.do_event_search(search_str, date)
             if len(candidate_events) == 0:
@@ -366,6 +455,57 @@ class Cagent_Movie(Agent.Movies):
                 year=candidate['year'],
                 score=score_dict[candidate['name']],
                 lang=lang))
+        return
+
+
+    # Try and find a promotions event(s) on a specific date so we can try match to a specific match
+    def search_for_matches(self, results, media, lang, search_input):
+        search_str = media.name
+        if 'prom' in search_input:
+            search_str = search_input['prom']
+
+        if 'date' in search_input:
+            date = get_date(search_input['date'])
+            candidate_events = self.do_event_search(search_str, date)
+        match_candidates = []
+        for candidate in candidate_events:
+            target_url = CM_MAIN_URL + CM_EVENT_URL.format(eventid=candidate['id'])
+            raw_card_html = simple_get(target_url + CM_EVENT_CARD_PARAM)
+            if raw_card_html is not None:
+                card_html = BeautifulSoup(raw_card_html, 'html.parser')
+                card_divs = card_html.find("div", {"class": "Matches"})
+                match_candidates = []
+                match_index = 1
+                for div in card_divs:
+                    match_candidates.append(
+                        {
+                            'id': candidate['id'] + ":" + str(match_index),
+                            'name': str(div.find("div", {"class": "MatchResults"}).text),
+                            'event_name': candidate['name'],
+                            'year': candidate['year'],
+                            'month': candidate['month'],
+                            'day': candidate['day']
+                        }
+                    )
+                    match_index = match_index + 1
+
+        # Try to match candidate matches to the extracted name component
+        match_str = media.name
+        if 'name' in search_input:
+            match_str = search_input['name']
+        scored_candidates = process.extract(match_str, [c['name'] for c in match_candidates], limit=len(match_candidates))
+        score_dict = dict(scored_candidates)
+        Log.Debug("[" + AGENT_NAME + "] [search_for_matches] Candidate scores: " + str(score_dict))
+        # TODO do some scoring modification for date matches: promotion match and date match
+        for candidate in match_candidates:
+            Log.Debug("[" + AGENT_NAME + "] [search_for_matches] Adding candidate: " + str(candidate))
+            results.Append(MetadataSearchResult(
+                id=candidate['id'],
+                name=format_match_name_for_candidate(candidate['name'], candidate['event_name'], candidate['year'], candidate['month'], candidate['day']),
+                year=candidate['year'],
+                score=score_dict[candidate['name']],
+                lang=lang))
+                
         return
 
 
