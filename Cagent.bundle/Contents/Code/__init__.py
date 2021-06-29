@@ -193,7 +193,7 @@ class Cagent_Movie(Agent.Movies):
         else:
             reg_match = reg.match(media.name)
             if reg_match is not None:
-                search_input = reg_match.groupdict()
+                search_input = {k: v for k, v in reg_match.groupdict().items() if v is not None}
                 Log.Debug("[" + AGENT_NAME + "] [search] Regex found the following components: " + str(search_input))
             else:
                 search_input = {'name': media.name}
@@ -510,13 +510,13 @@ class Cagent_Movie(Agent.Movies):
 
 
     def do_event_search(self, search_str, date=None):
+        Log.Info("[" + AGENT_NAME + "] [do_event_search] Performing search with string \"" + search_str + "\"")
         safe_url = urllib.quote_plus(search_str)
         target_url = CM_MAIN_URL + CM_SEARCH_URL.format(eventname=safe_url)
         if date is not None:
             target_url = target_url + CM_SPECIFIC_DATE_PARAMS.format(day=date.day,month=date.month,year=date.year)
         else:
             target_url = target_url + CM_DEFAULT_DATE_PARAMS
-        Log.Info("[" + AGENT_NAME + "] [do_event_search] Performing search with string \"" + search_str + "\"")
         Log.Debug("[" + AGENT_NAME + "] [do_event_search] Search URL: " + target_url)
         raw_html = simple_get(target_url)
         if raw_html is not None:
