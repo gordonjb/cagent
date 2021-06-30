@@ -3,7 +3,7 @@ import urllib
 import re
 import urlparse
 
-from fuzzywuzzy import process
+from fuzzywuzzy import fuzz, process
 from bs4 import BeautifulSoup
 from url_loading import simple_get
 from utils import get_date
@@ -152,20 +152,6 @@ def format_match_name_for_candidate(match, event, year, month, day):
 class Cagent_Movie(Agent.Movies):
     """
     Agent class to match wrestling shows as Movie library items.
-
-    Attributes
-    ----------
-    name : str
-        first name of the person
-    surname : str
-        family name of the person
-    age : int
-        age of the person
-
-    Methods
-    -------
-    info(additional=""):
-        Prints the person's name and age.
     """
     name = AGENT_NAME
     languages = AGENT_LANGUAGES
@@ -493,9 +479,9 @@ class Cagent_Movie(Agent.Movies):
         match_str = media.name
         if 'name' in search_input:
             match_str = search_input['name']
-        scored_candidates = process.extract(match_str, [c['name'] for c in match_candidates], limit=len(match_candidates))
+        scored_candidates = process.extract(match_str, [c['name'] for c in match_candidates], limit=len(match_candidates), scorer=fuzz.token_set_ratio)
         score_dict = dict(scored_candidates)
-        Log.Debug("[" + AGENT_NAME + "] [search_for_matches] Candidate scores: " + str(score_dict))
+        Log.Debug("[" + AGENT_NAME + "] [search_for_matches] Candidate scores ratio: " + str(score_dict))
         # TODO do some scoring modification for date matches: promotion match and date match
         for candidate in match_candidates:
             Log.Debug("[" + AGENT_NAME + "] [search_for_matches] Adding candidate: " + str(candidate))
