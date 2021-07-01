@@ -2,7 +2,9 @@
 import urllib
 import re
 import urlparse
+import os
 
+from urllib import url2pathname 
 from fuzzywuzzy import fuzz, process
 from bs4 import BeautifulSoup
 from url_loading import simple_get
@@ -171,25 +173,29 @@ class Cagent_Movie(Agent.Movies):
         'id': some id}
     """
     def search(self, results, media, lang, manual):
-        Log.Info("[" + AGENT_NAME + "] [search] Searching for \"" + media.name + "\"")
-        manual_id_match = re.match(r'^cm-id:([0-9:]+)$', str(media.name))
+        search_str = media.name
+        if media.filename:
+            pathname = url2pathname(media.filename)
+            search_str = os.path.splitext(os.path.basename(pathname))[0]
+        Log.Info("[" + AGENT_NAME + "] [search] Searching for \"" + search_str + "\" " + ("manually" if manual else "automatically"))
+        manual_id_match = re.match(r'^cm-id:([0-9:]+)$', search_str)
         if manual_id_match:
             self.search_by_cm_id(results, lang, manual_id_match.group(1))
             return
         else:
-            reg_match = reg.match(media.name)
+            reg_match = reg.match(search_str)
             if reg_match is not None:
                 search_input = {k: v for k, v in reg_match.groupdict().items() if v is not None}
                 Log.Debug("[" + AGENT_NAME + "] [search] Regex found the following components: " + str(search_input))
             else:
-                search_input = {'name': media.name}
+                search_input = {'name': search_str}
             
             if 'match' in search_input:
-                self.search_for_matches(results, media, lang, search_input)
+                self.search_for_matches(results, media, lang, search_input, search_str)
                 return
             else:
                 # Search for an event
-                self.search_for_events(results, media, lang, search_input)
+                self.search_for_events(results, media, lang, search_input, search_str)
                 return
 
 
@@ -411,8 +417,8 @@ class Cagent_Movie(Agent.Movies):
             return
 
     
-    def search_for_events(self, results, media, lang, search_input):
-        search_str = media.name
+    def search_for_events(self, results, media, lang, search_input, search_input_str):
+        search_str = search_input_str
         if 'name' in search_input:
             search_str = search_input['name']
             if 'prom' in search_input:
@@ -445,8 +451,8 @@ class Cagent_Movie(Agent.Movies):
 
 
     # Try and find a promotions event(s) on a specific date so we can try match to a specific match
-    def search_for_matches(self, results, media, lang, search_input):
-        search_str = media.name
+    def search_for_matches(self, results, media, lang, search_input, search_input_str):
+        search_str = search_input_str
         if 'prom' in search_input:
             search_str = search_input['prom']
 
@@ -476,7 +482,7 @@ class Cagent_Movie(Agent.Movies):
                     match_index = match_index + 1
 
         # Try to match candidate matches to the extracted name component
-        match_str = media.name
+        match_str = search_input_str
         if 'name' in search_input:
             match_str = search_input['name']
         scored_candidates = process.extract(match_str, [c['name'] for c in match_candidates], limit=len(match_candidates), scorer=fuzz.token_set_ratio)
