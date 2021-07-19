@@ -123,5 +123,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Test docker compose config
-docker-compose.yml
+# Docker environment
+.env
+.plexlogs
+
+# Ignore dependency files
+Cagent.bundle/Contents/Libraries

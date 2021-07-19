@@ -2,5 +2,8 @@
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": true,
     "python.linting.pylintUseMinimalCheckers": false,
-    "python.languageServer": "Pylance"
+    "python.languageServer": "Pylance",
+    "pasteImage.path": "${projectRoot}/.img/${currentFileNameWithoutExt}",
+    "pasteImage.showFilePathConfirmInputBox": true,
+    "pasteImage.filePathConfirmInputBoxMode": "onlyName"
 }
