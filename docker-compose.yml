@@ -1,0 +1,34 @@
+---
+services:
+  plex:
+    image: ghcr.io/linuxserver/plex
+    container_name: plex
+    network_mode: host
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - VERSION=docker
+      - PLEX_CLAIM= #optional
+    volumes:
+      # Create config volume so that library is not lost on restart
+      - config:/config
+      # Expose the config directory so logs etc. are readable on the host
+      - ./.plexlogs:/config/Library/Application Support/Plex Media Server/Logs
+      # Mount the bundle code into the container's plugin directory
+      - ./Cagent.bundle:/config/Library/Application Support/Plex Media Server/Plug-ins/Cagent.bundle
+      # Uncomment to mount a media directory to the container's movies directory
+      #- /path/to/media:/movies
+
+      # Remove the remaining lines if you aren't mounting a NAS directory. If you are, fill out a
+      # .env file with the vars below
+      - type: volume
+        source: nas
+        target: /movies
+        volume:
+          nocopy: true
+volumes:
+  nas:
+    driver_opts:
+      type: "nfs"
+      o: "addr=${NAS_IP},nolock,soft,rw"
+      device: ":${MEDIA_FOLDER}"
