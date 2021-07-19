@@ -1,25 +1,25 @@
 [
 	{
 		"id": "addEventsToCollection",
-		"label": "Add matched events from each promotion to a collection: ",
+		"label": "Add matched events to a \"Promotion Name\" collection",
+		"type": "bool",
+		"default": "false"
+	},
+	{
+		"id": "addMatchesToPromotionCollection",
+		"label": "Add individual matches to a \"Promotion Name\" collection",
 		"type": "bool",
 		"default": "false"
 	},
     {
 		"id": "addMatchesToMatchesCollection",
-		"label": "Add individual matches to a \"Matches\" collection: ",
+		"label": "Add individual matches to a \"Matches\" collection",
 		"type": "bool",
 		"default": "true"
 	},
-    {
-		"id": "addMatchesToPromotionCollection",
-		"label": "Add individual matches to the collection for the promotion: ",
-		"type": "bool",
-		"default": "false"
-	},
 	{
 		"id": "descriptionType",
-		"label": "Which card information should be included in the description: ",
+		"label": "Card information to be included in the event description: ",
 		"type": "enum",
 		"values": [
 			"Card",

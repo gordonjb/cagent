@@ -16,7 +16,7 @@ AGENT_NAME = "CAGEnt"
 AGENT_VERSION = "v0.1.0"
 AGENT_LANGUAGES = [Locale.Language.English]
 AGENT_PRIMARY_PROVIDER = True
-AGENT_ACCEPTS_FROM = [ 'com.plexapp.agents.localmedia', 'com.plexapp.agents.opensubtitles', 'com.plexapp.agents.subzero' ]
+AGENT_ACCEPTS_FROM = [ 'com.plexapp.agents.localmedia' ]
 
 # ################### URLs ###################
 CM_MAIN_URL = "https://www.cagematch.net/"
@@ -178,7 +178,8 @@ class Cagent_Movie(Agent.Movies):
             pathname = url2pathname(media.filename)
             search_str = os.path.splitext(os.path.basename(pathname))[0]
         Log.Info("[" + AGENT_NAME + "] [search] Searching for \"" + search_str + "\" " + ("manually" if manual else "automatically"))
-        manual_id_match = re.match(r'^cm-id:([0-9:]+)$', search_str)
+        # CM ID Regex tester: https://regex101.com/r/6mNdAe/1
+        manual_id_match = re.match(r'^cm-id:([0-9]+:?-?[0-9]+)$', search_str)
         if manual_id_match:
             self.search_by_cm_id(results, lang, manual_id_match.group(1))
             return
@@ -400,18 +401,32 @@ class Cagent_Movie(Agent.Movies):
             name = str(dictionary[NAME_KEY]['text'])
             if match_id is not None:
                 card_divs = html.find("div", {"class": "Matches"})
-                match_idx = int(match_id) - 1
-                if match_idx < len(card_divs):
+                match_id_int = int(match_id)
+                match_idx = match_id_int - 1 if match_id_int > 0 else match_id_int
+                Log.Debug("[" + AGENT_NAME + "] [search_by_cm_id] " + match_id + "|" + str(match_idx))
+                if match_idx == 0:
+                    for count, div in enumerate(card_divs.contents, start=1):
+                        name = format_match_name_for_candidate(
+                        str(div.find("div", {"class": "MatchResults"}).text),
+                        name, yyyy, mm, dd)
+
+                        results.Append(MetadataSearchResult(
+                            id=event_id + str(count),
+                            name=name,
+                            year=str(int(yyyy)),
+                            score=50,
+                            lang=lang))
+                elif match_idx < len(card_divs):
                     name = format_match_name_for_candidate(
                         str(card_divs.contents[match_idx].find("div", {"class": "MatchResults"}).text),
                         name, yyyy, mm, dd)
 
-            results.Append(MetadataSearchResult(
-                id=cm_id,
-                name=name,
-                year=str(int(yyyy)),
-                score=100,
-                lang=lang))
+                    results.Append(MetadataSearchResult(
+                        id=cm_id,
+                        name=name,
+                        year=str(int(yyyy)),
+                        score=100,
+                        lang=lang))
         else:
             Log.Error("[" + AGENT_NAME + "] [search_by_cm_id] Nothing was returned from request")
             return
