@@ -2,20 +2,34 @@
 
 CAGEnt is a Plex metadata agent for the incredible wrestling database, CAGEMATCH.net. CAGEnt will attempt to match files in Movie libraries against Event entries in the CAGEMATCH database, providing metadata where possible.
 
-## How does it work?
+## Result Screenshots
 
-We use a few things to perform different functions:
+|   |   |
+|---|---|
+| ![Screenshot of Plex's main library screen, displaying matched events](/.img/README/2021-07-10-17-10-14.png) | ![Screenshot of a matched event item in Plex, displaying metadata](/.img/README/2021-07-10-17-12-01.png) |
+| ![Screenshot of a Plex collection of matches](/.img/README/2021-07-10-17-13-34.png) | ![Screenshot of a matched match item in Plex, displaying metadata](/.img/README/2021-07-10-17-13-51.png) |
 
-- requests to retrieve raw HTML
-- BeautifulSoup to parse the raw HTML
-- fuzzywuzzy to score search results
+## Installation
 
-## Why does this exist?
+1. Download the latest release from the [releases page](https://github.com/gordonjb/cagent/releases).
+1. Extract the contents
+1. Copy the Cagent.bundle folder in it's entirety to your Plex Plugin directory. To find this folder for your platform, consult the [Plex documentation](https://support.plex.tv/articles/201106098-how-do-i-find-the-plug-ins-folder/).
+1. Restart your Plex server
 
-If you search around, you'll find quite a few posts where people discuss how they organise their wrestling libraries. Mostly, these posts conclude that there isn't a great option. While WWE got some coverage in existing metadata DBs, it was often prone to being deleted at a moment's notice on the whims of the admin. While that situation seems to have alleviated of late, and weekly TV is represented in TVDB and elsewhere, the volume of wrestling available means that not everything is going to be available in a DB intended to track TV Shows and Movies, and arguably every wrestling event doesn't fit in a database like that.
+## Documentation
 
-My previous setup had just been to dump files in a folder and use the "Other Videos" library type in Plex, which doesn't provide any of the niceties like metadata or a nice way to sort files. Due to... incidents... I'd checked out of wrestling for most of 2020, and recently decided to build a new library of wrestling content. I wanted a library that looked nice, was sorted well and had metadata defined. After matching some ROH content that *was* included in TMDB, I thought building a Plex agent that could do the same for any wrestling event would be a fun project. I also had Python experience scraping CAGEMATCH for a previous project, [graplist.fm](https://github.com/gordonjb/graplist.fm), sadly abandoned around the time it turned out half my top 10 had been noncing.
+[Setup & Configuration](/docs/config.md)
 
-## Do you like this?
+[Project info](/docs/project_info.md)
 
-In lieu of donating to me, please support CAGEMATCH, as it's their bandwidth we're using, to keep their incredible dataset online. They have a Patreon at <https://www.patreon.com/cagematchdotnet>.
+[Developer info](/docs/developer_docs.md)
+
+## Roadmap
+
+There is a Kanban board for this project hosted here: <https://github.com/gordonjb/cagent/projects/2>. Feel free to raise issues if you have enhancement requests/ideas/problems, or to help with outstanding issues.
+
+## Thanks
+
+The [MyAnimeList](https://github.com/Fribb/MyAnimeList.bundle) & [The Great Courses](https://github.com/bubonic/TGC.bundle/tree/master/TGC.bundle) agents were invaluable for getting started and as references to how to do almost anything given the complete lack of Plex documentation!
+
+If you use this project, please consider supporting CAGEMATCH, as it's their bandwidth we're using, to keep their incredible dataset online. They have a Patreon at <https://www.patreon.com/cagematchdotnet>.
