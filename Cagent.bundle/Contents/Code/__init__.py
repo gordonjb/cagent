@@ -427,6 +427,13 @@ class Cagent_Movie(Agent.Movies):
                         year=str(int(yyyy)),
                         score=100,
                         lang=lang))
+            else:
+                results.Append(MetadataSearchResult(
+                id=cm_id,
+                name=name,
+                year=str(int(yyyy)),
+                score=100,
+                lang=lang))
         else:
             Log.Error("[" + AGENT_NAME + "] [search_by_cm_id] Nothing was returned from request")
             return
