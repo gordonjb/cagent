@@ -10,13 +10,19 @@ on:
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
-    
+
     steps:
     # Drafts your next Release notes as Pull Requests are merged into "main"
     - name: Draft release notes
+      id: draft
       uses: release-drafter/release-drafter@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    # Map a step output to a job output
+    outputs:
+      tag_name: ${{ steps.draft.outputs.tag_name }}
+
   build:
     runs-on: ubuntu-latest
     strategy:
