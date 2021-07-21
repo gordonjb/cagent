@@ -7,26 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added 
-
-- Added Dutch translation
-
-### Fixed
-
-- Fixed foldouts in Dutch translation
-
-## [0.1.0] - 2021-03-xx
+## [1.0.0] - 2021-07-21
 
 Initial release.
 
-### Added
+### 🚀 Features
 
-- This CHANGELOG file to hopefully serve as an evolving example of a
-  standardized open source project CHANGELOG.
-- CNAME file to enable GitHub Pages custom domain
-- README now contains answers to common questions about CHANGELOGs
-- Good examples and basic guidelines, including proper date formatting.
-- Counter-examples: "What makes unicorns cry?"
+- Searching for events by name format
+- Searching for events by CAGEMATCH ID
+- Searching for matches by name format
+- Searching for matches by CAGEMATCH ID
+- Metadata for events and matches:
+  - Summary and title are generated from event info
+  - Wrestlers are added to items as Roles
+  - Options to add items to collections
+  - Review scores from CAGEMATCH
 
-[unreleased]: https://github.com/gordonjb/cagent/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/gordonjb/cagent/releases/tag/v0.1.0
+[unreleased]: https://github.com/gordonjb/cagent/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/gordonjb/cagent/releases/tag/v1.0.0
