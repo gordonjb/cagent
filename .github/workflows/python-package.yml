@@ -1,17 +1,14 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python package
+name: Bundle and draft release
 
 on:
   push:
-    branches: [ test_workflow ]
-  pull_request:
-    branches: [ test_workflow ]
+    branches: [ main ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -31,3 +28,16 @@ jobs:
     - name: Install test dependencies
       run: |
         python -m pip install --upgrade pip
+    # Drafts your next Release notes as Pull Requests are merged into "main"
+    - name: Draft release notes
+      uses: release-drafter/release-drafter@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload artefact to release
+      run: |
+        zip -r Cagent.bundle.zip ./Cagent.bundle
+        gh release upload --clobber ${{ env.VERSION }} ${{ env.FILES }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        VERSION: ${{ needs.draft_release.outputs.tag_name }}
+        FILES: Cagent.bundle.zip
