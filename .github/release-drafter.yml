@@ -15,3 +15,14 @@ change-template: '- $TITLE (#$NUMBER)'
 template: |
   ## New in CAGEnt v$NEXT_PATCH_VERSION
   $CHANGES
+version-resolver:
+  major:
+    labels:
+      - 'major'
+  minor:
+    labels:
+      - 'minor'
+  patch:
+    labels:
+      - 'patch'
+  default: patch
