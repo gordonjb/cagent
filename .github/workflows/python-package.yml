@@ -10,6 +10,7 @@ on:
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
+    
     steps:
     # Drafts your next Release notes as Pull Requests are merged into "main"
     - name: Draft release notes
@@ -22,6 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [2.7]
+    needs: [update_release_draft]
 
     steps:
     - uses: actions/checkout@v2
