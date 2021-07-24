@@ -1,16 +1,22 @@
 name-template: 'v$NEXT_PATCH_VERSION'
 tag-template: 'v$NEXT_PATCH_VERSION'
+category-template: '### $TITLE'
 categories:
   - title: '🚀 Features'
-    label: 'Feature 🎁'
+    labels:
+      - 'feature'
+      - 'enhancement'
   - title: '💣 Breaking Change'
-    label: 'Breaking Change 💣'
+    label: 'breaking'
   - title: '🐛 Bug Fixes'
-    label: 'Bug 🐛'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
   - title: '📝 Documentation'
-    label: 'Documentation 📝'
+    label: 'documentation'
   - title: '🔨 Maintenance'
-    label: 'Maintenance 🔨'
+    label: 'chore'
 change-template: '- $TITLE (#$NUMBER)'
 template: |
   ## New in CAGEnt v$NEXT_PATCH_VERSION
