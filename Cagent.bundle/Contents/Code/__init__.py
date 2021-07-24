@@ -398,20 +398,19 @@ class Cagent_Movie(Agent.Movies):
             dictionary = get_event_information_dictionary(html)
             date_str = dictionary[DATE_KEY]['text']
             dd, mm, yyyy = date_str.split(".")
-            name = str(dictionary[NAME_KEY]['text'])
+            event_name = str(dictionary[NAME_KEY]['text'])
             if match_id is not None:
                 card_divs = html.find("div", {"class": "Matches"})
                 match_id_int = int(match_id)
                 match_idx = match_id_int - 1 if match_id_int > 0 else match_id_int
-                Log.Debug("[" + AGENT_NAME + "] [search_by_cm_id] " + match_id + "|" + str(match_idx))
                 if match_idx == 0:
                     for count, div in enumerate(card_divs.contents, start=1):
                         name = format_match_name_for_candidate(
-                        str(div.find("div", {"class": "MatchResults"}).text),
-                        name, yyyy, mm, dd)
+                            str(div.find("div", {"class": "MatchResults"}).text),
+                            event_name, yyyy, mm, dd)
 
                         results.Append(MetadataSearchResult(
-                            id=event_id + str(count),
+                            id=event_id + ":" + str(count),
                             name=name,
                             year=str(int(yyyy)),
                             score=50,
@@ -419,7 +418,7 @@ class Cagent_Movie(Agent.Movies):
                 elif match_idx < len(card_divs):
                     name = format_match_name_for_candidate(
                         str(card_divs.contents[match_idx].find("div", {"class": "MatchResults"}).text),
-                        name, yyyy, mm, dd)
+                        event_name, yyyy, mm, dd)
 
                     results.Append(MetadataSearchResult(
                         id=cm_id,
@@ -430,7 +429,7 @@ class Cagent_Movie(Agent.Movies):
             else:
                 results.Append(MetadataSearchResult(
                 id=cm_id,
-                name=name,
+                name=event_name,
                 year=str(int(yyyy)),
                 score=100,
                 lang=lang))
