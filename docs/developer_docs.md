@@ -41,6 +41,7 @@ To generate the test files:
 
 - **Requirement**: Install ffmpeg and have it available on the path.
 - **Requirement**: Have pyyaml available. If not installed, run `pip install pyyaml`.
-- From the root of this project, run `python ./test/populate-media.py`.
+- Change into the test directory
+- From the root of this project, run `python ./populate-media.py`.
 
-Once your test files are prepared, from the `test` directory run `docker-compose up -d` to bring up Plex. Go to [localhost:32400/web/index.html](http://localhost:32400/web/index.html) and run through the server setup steps to begin testing.
+Once your test files are prepared, from the `test` directory run `docker-compose up -d` to bring up Plex. Go to [localhost:32400/web/index.html](http://localhost:32400/web/index.html) and run through the server setup steps to begin testing. Logs will be available in [test/.plexlogs](test/.plexlogs), and test media in [test/.movies](test/.movies)

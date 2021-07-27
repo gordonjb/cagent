@@ -14,7 +14,7 @@ def ffmpeg(path, time):
 # Main script starts
 
 # Load YAML config file
-config = yaml.safe_load(open("./test/test-files.yml"))
+config = yaml.safe_load(open("./test-files.yml"))
 
 # Create the library root directory if it does not exist
 directory = ".movies"
