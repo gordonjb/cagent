@@ -126,6 +126,7 @@ dmypy.json
 # Docker environment
 .env
 .plexlogs
+.movies
 
 # Ignore dependency files
 Cagent.bundle/Contents/Libraries

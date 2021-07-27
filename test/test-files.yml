@@ -1,0 +1,15 @@
+# Match names should be the full file name. A file will be created of the format {base folder}/{name}
+matches:
+  - "BJW - 2018-06-20 - M - Isami Kodaka vs Masashi Takeda.mp4"
+  - "ECW - 1999-05-16 - M - Rob Van Dam vs Jerry Lynn.mkv"
+  - "2018-10-09 - M - Hikaru Shida vs Naomichi Marufuji.mp4"
+  - "AEW - 2021-03-17 - M - Britt Baker vs Thunder Rosa.mp4"
+  - "WCW - 1999-04-26 - M - Sting vs Diamond Dallas Page.mkv"
+  - "WWF - 1997-02-26 - M - Owen Hart vs The British Bulldog.mp4"
+  - "WWE - 1999-04-25 - M - Steve Austin vs The Rock.mkv"
+# Event names should be the name of the enclosing folder. A file will be created of the format {base folder}/{name}/{name}.mkv
+events:
+  - "DDT - 2020-07-06 - Chris Brookes Produce Shin-Kiba No Fans Extravaganza #1"
+  - "PWG - The Many Adventures of El Generico"
+  - "Ice Ribbon - 2019-03-31 - New Ice Ribbon #951 ~ Ice Ribbon March 2019"
+  - "2017-11-03 - Manami Toyota Produce Manami Toyota 30th Anniversary ~ Retirement To The Universe"
