@@ -6,14 +6,13 @@ import os
 
 from urllib import url2pathname 
 from fuzzywuzzy import fuzz, process
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from url_loading import simple_get
 from utils import get_date
 from datetime import datetime
 
 # ################### Agent Constants ###################
 AGENT_NAME = "CAGEnt"
-AGENT_VERSION = "v0.1.0"
 AGENT_LANGUAGES = [Locale.Language.English]
 AGENT_PRIMARY_PROVIDER = True
 AGENT_ACCEPTS_FROM = [ 'com.plexapp.agents.localmedia' ]
@@ -26,6 +25,7 @@ CM_DEFAULT_DATE_PARAMS = "&sDateFromDay=01&sDateFromMonth=01&sDateFromYear=" + C
 CM_SPECIFIC_DATE_PARAMS = "&sDateFromDay={day}&sDateFromMonth={month}&sDateFromYear={year}&sDateTillDay={day}&sDateTillMonth={month}&sDateTillYear={year}"
 CM_EVENT_URL = "?id=1&nr={eventid}"
 CM_EVENT_CARD_PARAM = "&page=2"
+CM_REVIEWS_PARAM = "&page=99"
 
 # ################### Cagematch event info keys ###################
 DATE_KEY = "Date"
@@ -41,6 +41,9 @@ COMMENTARY_KEY = "Commentary by" # Not always present
 CARD_KEY = "Card"
 RESULTS_KEY = "Results"
 MATCH_KEY = "Match"
+
+# ################### Cagematch matchguide keys ###################
+WON_KEY = "WON rating" # Not always present
 
 # ################### the scary regex ###################
 # https://regex101.com/r/YgefKe/1
@@ -72,8 +75,14 @@ def get_event_information_dictionary(html):
 
 
 def get_link_dict(box_content):
+    """
+    If the provided element is a link, return a dictionary containing the link's display 'text' and the 'link' itself.
+    Otherwise return a dictionary with 'text' being the string of the element
+    """
     if box_content.name == 'a':
         return {'text': str(box_content.string), 'link': str(box_content.attrs['href'])}
+    elif isinstance(box_content, Tag):
+        return {'text': box_content.text}
     else:
         return {'text': str(box_content)}
 
@@ -246,7 +255,7 @@ class Cagent_Movie(Agent.Movies):
             metadata.collections = collections
 
             if is_match:
-                Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] Setting match specific metadata")
+                Log.Debug("[" + AGENT_NAME + "] [update] Setting match specific metadata")
                 match_idx = int(match_id) - 1
                 # For matches, use the match card to get the title and set it into the dictionary
                 raw_card_html = simple_get(target_url + CM_EVENT_CARD_PARAM)
@@ -259,7 +268,6 @@ class Cagent_Movie(Agent.Movies):
                         dictionary[MATCH_KEY] = {'text': match_name}
                 
                 # Set the Cagematch rating if available
-                ratings_divs = html.find_all("div", {"class": "RatingsBoxAdjustedRating"})
                 result_divs = html.find("div", {"class": "Matches"})
                 if match_idx < len(result_divs):
                     result_text = result_divs.contents[match_idx].find("div", {"class": "MatchRecommendedLine"}).text
@@ -268,7 +276,44 @@ class Cagent_Movie(Agent.Movies):
                         event_rating = result_text[len(prefix):result_text.index(' based on')]
                         metadata.rating = float(event_rating)
                     else:
-                        Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] No rating for match")
+                        Log.Debug("[" + AGENT_NAME + "] [update] No rating for match")
+
+                # Add reviews if enabled
+                metadata.reviews.clear()
+                maxReviews = int(Prefs["reviewCount"])
+                if maxReviews > 0:
+                    reviewsAdded = 0
+                    if match_idx < len(result_divs):
+                        matchguide_url = CM_MAIN_URL + result_divs.contents[match_idx].find("div", {"class": "MatchRecommendedLine"}).find('a', href=True).attrs['href']
+                        Log.Debug("[" + AGENT_NAME + "] [update] Matchguide entry: " + matchguide_url)
+                        if Prefs["tokyoDome"]:
+                            raw_matchguide_html = simple_get(matchguide_url)
+                            if raw_matchguide_html is not None:
+                                matchguide_html = BeautifulSoup(raw_matchguide_html, 'html.parser')
+                                matchguide_dictionary = get_event_information_dictionary(matchguide_html)
+                                if WON_KEY in matchguide_dictionary:
+                                    reviewsAdded += 1
+                                    r = metadata.reviews.new()
+                                    r.author = 'Dave Meltzer'
+                                    r.source = 'Wrestling Observer Newsletter'
+                                    r.link = 'https://www.f4wonline.com/'
+                                    r.text = matchguide_dictionary.get(WON_KEY, {}).get('text', '').replace("*", "★").replace("1/2", "⯪").replace("1/4", "¼").replace("3/4", "¾")
+                        
+                        if reviewsAdded < maxReviews:
+                            raw_match_comments_html = simple_get(matchguide_url + CM_REVIEWS_PARAM)
+                            if raw_match_comments_html is not None:
+                                match_comments_html = BeautifulSoup(raw_match_comments_html, 'html.parser')
+                                comment_divs = match_comments_html.find_all("div", {"class": "Comment"})
+                                i = 0
+                                while (reviewsAdded < maxReviews and i < len(comment_divs)):
+                                    comment = comment_divs[i]
+                                    r = metadata.reviews.new()
+                                    r.author = comment.find("div", {"class": "CommentHeader"}).text.split(" wrote on ")[0]
+                                    r.source = 'CAGEMATCH user'
+                                    r.link = matchguide_url + CM_REVIEWS_PARAM
+                                    r.text = comment.find("div", {"class": "CommentContents"}).text
+                                    i += 1
+                                    reviewsAdded += 1
 
                 # Set workers as roles, in future some way to link roles that are same e.g. Dean Ambrose/Jon Moxley
                 metadata.roles.clear()
@@ -276,9 +321,9 @@ class Cagent_Movie(Agent.Movies):
                 worker_list = [w.strip() for w in all_workers.text.split(",")]
                 match_text = dictionary.get(MATCH_KEY, {}).get('text', '')
                 for worker in worker_list:
-                    # Only add workers in this match, do this the naiive way:
+                    # Only add workers in this match, do this the naïve way:
                     if worker in match_text:
-                        Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] Setting roles: worker " + worker + " match " + match_text)
+                        Log.Debug("[" + AGENT_NAME + "] [update] Setting roles: worker " + worker + " match " + match_text)
                         role = metadata.roles.new()
                         role.name = worker
                 
@@ -287,7 +332,7 @@ class Cagent_Movie(Agent.Movies):
                 if match_summary is not None:
                     metadata.summary = match_summary
             else:
-                Log.Debug("[" + AGENT_NAME + "] [update_from_cm_id] Setting event specific metadata")
+                Log.Debug("[" + AGENT_NAME + "] [update] Setting event specific metadata")
                 # Set the event name
                 event_name = str(dictionary[NAME_KEY]['text'])
                 if event_name is not None:
@@ -301,6 +346,26 @@ class Cagent_Movie(Agent.Movies):
                         if event_rating is not None and str(event_rating) != "---":
                             metadata.rating = float(event_rating)
 
+                # Add reviews if enabled
+                metadata.reviews.clear()
+                maxReviews = int(Prefs["reviewCount"])
+                if maxReviews > 0:
+                    reviewsAdded = 0
+                    raw_event_comments_html = simple_get(target_url + CM_REVIEWS_PARAM)
+                    if raw_event_comments_html is not None:
+                        event_comments_html = BeautifulSoup(raw_event_comments_html, 'html.parser')
+                        comment_divs = event_comments_html.find_all("div", {"class": "Comment"})
+                        i = 0
+                        while (reviewsAdded < maxReviews and i < len(comment_divs)):
+                            comment = comment_divs[i]
+                            r = metadata.reviews.new()
+                            r.author = comment.find("div", {"class": "CommentHeader"}).text.split(" wrote on ")[0]
+                            r.source = 'CAGEMATCH user'
+                            r.link = target_url + CM_REVIEWS_PARAM
+                            r.text = comment.find("div", {"class": "CommentContents"}).text
+                            i += 1
+                            reviewsAdded += 1
+                
                 # Set the results into the event dictionary
                 result_divs = html.find("div", {"class": "Matches"})
                 event_results = ''
