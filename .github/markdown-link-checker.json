@@ -1,0 +1,22 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost"
+    },
+    {
+      "pattern": "Cagent.bundle/Contents/Libraries"
+    },
+    {
+      "pattern": "test/.plexlogs"
+    },
+    {
+      "pattern": "test/.movies"
+    }
+  ],
+  "replacementPatterns": [
+    {
+      "pattern": "^/",
+      "replacement": "{{BASEURL}}/"
+    }
+  ]
+}
