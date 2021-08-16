@@ -2,14 +2,30 @@
 matches:
   - "BJW - 2018-06-20 - M - Isami Kodaka vs Masashi Takeda.mp4"
   - "ECW - 1999-05-16 - M - Rob Van Dam vs Jerry Lynn.mkv"
+  # Test that we can match matches from freelance
   - "2018-10-09 - M - Hikaru Shida vs Naomichi Marufuji.mp4"
+  # This match was taped on 11.03.2021 but aired on 17.03.2021. In an ideal world, we could match with either date
   - "AEW - 2021-03-17 - M - Britt Baker vs Thunder Rosa.mp4"
-  - "WCW - 1999-04-26 - M - Sting vs Diamond Dallas Page.mkv"
+  # This match was taped on 26.02.1997 but aired on 03.03.1997. In an ideal world, we could match with either date
   - "WWF - 1997-02-26 - M - Owen Hart vs The British Bulldog.mp4"
+  # Test if this is matched to this or the 4 way after also including Sting & DDP
+  - "WCW - 1999-04-26 - M - Sting vs Diamond Dallas Page.mkv"
+  # Can a match where the promotion had a different name be matched using the current name? (i.e. WWE instead of WWF). In an ideal world, both would work
   - "WWE - 1999-04-25 - M - Steve Austin vs The Rock.mkv"
+  # Test the half star unicode replacement for Meltz matches
+  - "DDT - 2019-07-15 - M - Konosuke Takeshita vs Tetsuya Endo.mp4"
+  # Test the 1/4 star unicode replacement for Meltz matches
+  - "NJPW - 2017-06-11 - M - Kazuchika Okada vs. Kenny Omega.mp4"
+  # Test the 3/4 star unicode replacement for Meltz matches
+  - "NJPW - 2019-01-04 - M - Hiroshi Tanahashi vs Kenny Omega.mp4"
+  
 # Event names should be the name of the enclosing folder. A file will be created of the format {base folder}/{name}/{name}.mkv
 events:
+  # Test matching multiple promotion shows? The promotion here is technically DDT/Chris Brookes
   - "DDT - 2020-07-06 - Chris Brookes Produce Shin-Kiba No Fans Extravaganza #1"
+  # Test matching a DVD
   - "PWG - The Many Adventures of El Generico"
+  # Plex will return a shortened name, test that we can do filename extraction
   - "Ice Ribbon - 2019-03-31 - New Ice Ribbon #951 ~ Ice Ribbon March 2019"
+  # Test that freelance events work
   - "2017-11-03 - Manami Toyota Produce Manami Toyota 30th Anniversary ~ Retirement To The Universe"

@@ -27,5 +27,40 @@
 			"None"
 		],
 		"default": "Card"
+	},
+	{
+		"id": "reviewCount",
+		"label": "Maximum number of reviews to add (0 disables reviews)",
+		"type": "enum",
+		"values": [
+			"0",
+			"1",
+			"2",
+			"3",
+			"4",
+			"5",
+			"6",
+			"7",
+			"8",
+			"9",
+			"10",
+			"11",
+			"12",
+			"13",
+			"14",
+			"15",
+			"16",
+			"17",
+			"18",
+			"19",
+			"20"
+		],
+		"default": "10"
+	},
+	{
+		"id": "tokyoDome",
+		"label": "Include WON Ratings if available when adding reviews (no effect if reviews are disabled)",
+		"type": "bool",
+		"default": "true"
 	}
 ]

@@ -167,3 +167,20 @@ Event summaries can optionally include the following after the initial summary, 
 - "Card": The results as displayed on an event's "Card" tab (e.g. "x vs y")
 - "Results": The results as displayed on an event's "Results" tab (e.g. "y defeats x")
 - "None": No card or result information is included in the summary
+
+### "Maximum number of reviews to add (0 disables reviews)"
+
+- **Type:** List of options
+- **Options:**
+  - "0"
+  - "1"
+  - "2"
+  - ...
+  - "20"
+- **Default:** "15"
+
+Matched items can contain reviews from CAGEMATCH users. The maximum number of reviews that will be retrieved can be controlled with this setting. Reviews can also be turned off by selecting "0". This setting does not affect the rating score on items.
+
+- "Card": The results as displayed on an event's "Card" tab (e.g. "x vs y")
+- "Results": The results as displayed on an event's "Results" tab (e.g. "y defeats x")
+- "None": No card or result information is included in the summary
