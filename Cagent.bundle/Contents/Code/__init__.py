@@ -45,6 +45,10 @@ MATCH_KEY = "Match"
 # ################### Cagematch matchguide keys ###################
 WON_KEY = "WON rating" # Not always present
 
+# ################### Cagematch promotion keys ###################
+ABBREVIATIONS_KEY = "Abbreviations"
+CURR_ABBREVIATION_KEY = "Current abbreviation"
+
 # ################### the scary regex ###################
 # https://regex101.com/r/YgefKe/1
 FILENAME_REGEX = "(?:(?=^\d{4})|(?P<prom>.+?)(?:(?= [^-]) |(?= - ) - ))(?P<date>(?:\d{4})(?: |-|.)(?:(?:0[1-9])|(?:1[0-2]))(?: |-|.)(?:(?:0[1-9])|(?:1[0-9])|(?:2[0-9])|(?:3[0-1])))(?:(?= M | - M - )(?P<match> M | - M - )|(?! M | - M - )(?:(?= [^-]) |(?= - ) - ))(?P<name>.+)"
@@ -57,20 +61,46 @@ FREELANCE_STRINGS = ['Wrestling In Mexiko - Freelance Shows', 'Wrestling In Euro
 
 def get_event_information_dictionary(html):
     """
-    Find the information box from the event page. Essentially treat it as a table:
-        - find every InformationBoxTitle div, and use the text as a key.
-        - find every InformationBoxContents div, and use the content as a value.
+    Find the information box from the event page. 
 
     :param html: the event page html, as parsed through Beautiful Soup
     :return: dictionary of the event information box
     """
     event_table = html.find("div", {"class": "InformationBoxTable"})
-    keys = [str(span.get_text().rstrip(':').strip()) for span in event_table.find_all(
+    dictionary = get_dict_from_table(event_table)
+    Log.Debug("[" + AGENT_NAME + "] [get_event_information_dictionary] Parsed event dictionary: " + str(dictionary))
+    return dictionary
+
+
+def get_promotion_information_dictionary(html):
+    """
+    Find the information boxes from the promotion page. 
+
+    :param html: the promotion page html, as parsed through Beautiful Soup
+    :return: dictionary of the promotion information boxes
+    """
+    tables = html.find_all("div", {"class": "InformationBoxTable"})
+    general_dictionary = get_dict_from_table(tables[0])
+    details_dictionary = get_dict_from_table(tables[1])
+    dictionary = general_dictionary.copy()
+    dictionary.update(details_dictionary)
+    Log.Debug("[" + AGENT_NAME + "] [get_promotion_information_dictionary] Parsed promotion dictionary: " + str(dictionary))
+    return dictionary
+
+
+def get_dict_from_table(information_box_table):
+    """
+    From an individual InformationBoxTable div, essentially treat it as a table:
+        - find every InformationBoxTitle div, and use the text as a key.
+        - find every InformationBoxContents div, and use the content as a value.
+
+    :return: dictionary of the event information box
+    """
+    keys = [str(span.get_text().rstrip(':').strip()) for span in information_box_table.find_all(
         "div", {"class": "InformationBoxTitle"})]
-    values = [get_link_dict(span.contents[0]) for span in event_table.find_all(
+    values = [get_link_dict(span.contents[0]) for span in information_box_table.find_all(
         "div", {"class": "InformationBoxContents"})]
     dictionary = dict(zip(keys, values))
-    Log.Debug("[" + AGENT_NAME + "] [get_event_information_dictionary] Parsed event dictionary: " + str(dictionary))
     return dictionary
 
 
@@ -336,6 +366,26 @@ class Cagent_Movie(Agent.Movies):
                 # Set the event name
                 event_name = str(dictionary[NAME_KEY]['text'])
                 if event_name is not None:
+                    if Prefs["removePromotionSlug"] == 'Always' or (Prefs["removePromotionSlug"] == 'When added to \"Promotion Name\" collection' and Prefs["addEventsToCollection"]):
+                        raw_promotion_html = simple_get(CM_MAIN_URL + dictionary.get(PROMOTION_KEY, {}).get('link', ''))
+                        if raw_promotion_html is not None:
+                            promotion_html = BeautifulSoup(raw_promotion_html, 'html.parser')
+                            promotion_dict = get_promotion_information_dictionary(promotion_html)
+                            
+                            # Check "Current abbreviation" first
+                            current_slug = promotion_dict.get(CURR_ABBREVIATION_KEY, {}).get('text', '')
+                            if current_slug is not '' and event_name.startswith(current_slug):
+                                    event_name = event_name.replace(current_slug,"",1) # Only remove first instance, which we already know is at start
+                                    if event_name.startswith('/'): # Trim leading slash if we've removed slug for co-promoted events
+                                        event_name = event_name.replace('/',"",1)
+
+                            slug_set = set(promotion_dict.get(ABBREVIATIONS_KEY, {}).get('text', '').split(', '))
+                            for slug in slug_set:
+                                if event_name.startswith(slug):
+                                    event_name = event_name.replace(slug,"",1) # Only remove first instance, which we already know is at start
+                                    if event_name.startswith('/'): # Trim leading slash if we've removed slug for co-promoted events
+                                        event_name = event_name.replace('/',"",1)
+
                     metadata.title = event_name
 
                 # Set the Cagematch rating if available

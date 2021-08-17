@@ -15,9 +15,8 @@ def simple_get(url):
     text content, otherwise return None.
     """
     try:
+        Log.Debug("[url_loading] Requesting " + str(url))
         with closing(get(url, stream=True, headers = {'Accept-Encoding': 'identity'})) as resp:
-        #with closing(get(url, stream=True)) as resp:
-            Log.Debug("[url_loading] " + str(resp.request.headers))
             if is_good_response(resp):
                 return resp.content
             else:

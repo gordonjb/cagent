@@ -29,3 +29,8 @@ events:
   - "Ice Ribbon - 2019-03-31 - New Ice Ribbon #951 ~ Ice Ribbon March 2019"
   # Test that freelance events work
   - "2017-11-03 - Manami Toyota Produce Manami Toyota 30th Anniversary ~ Retirement To The Universe"
+  # Multiple events from same promotion, used to test collections and slug removal
+  - "ROH - 2002-02-23 - The Era of Honor Begins"
+  - "ROH - 2002-03-30 - Round Robin Challenge"
+  - "ROH - 2002-04-27 - Night of Appreciation"
+  - "ROH - 2002-06-22 - Road To The Title"

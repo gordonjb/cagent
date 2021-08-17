@@ -62,5 +62,16 @@
 		"label": "Include WON Ratings if available when adding reviews (no effect if reviews are disabled)",
 		"type": "bool",
 		"default": "true"
+	},
+	{
+		"id": "removePromotionSlug",
+		"label": "Remove promotion abbreviaton from event titles: ",
+		"type": "enum",
+		"values": [
+			"Always",
+			"When added to \"Promotion Name\" collection",
+			"Never"
+		],
+		"default": "When added to \"Promotion Name\" collection"
 	}
 ]
