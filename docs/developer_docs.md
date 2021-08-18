@@ -45,4 +45,3 @@ To generate the test files:
 - From the root of this project, run `python ./populate-media.py`.
 
 Once your test files are prepared, from the `test` directory run `docker-compose up -d` to bring up Plex. Go to [localhost:32400/web/index.html](http://localhost:32400/web/index.html) and run through the server setup steps to begin testing. Logs will be available in [test/.plexlogs](/test/.plexlogs), and test media in [test/.movies](/test/.movies).
-           
