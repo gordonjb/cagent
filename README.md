@@ -6,8 +6,8 @@ CAGEnt is a Plex metadata agent for the incredible wrestling database, CAGEMATCH
 
 |   |   |
 |---|---|
-| ![Screenshot of Plex's main library screen, displaying matched events](/.img/README/2021-07-10-17-10-14.png) | ![Screenshot of a matched event item in Plex, displaying metadata](/.img/README/2021-07-10-17-12-01.png) |
-| ![Screenshot of a Plex collection of matches](/.img/README/2021-07-10-17-13-34.png) | ![Screenshot of a matched match item in Plex, displaying metadata](/.img/README/2021-07-10-17-13-51.png) |
+| ![Screenshot of Plex's main library screen, displaying matched events](/.img/README/2021-07-10-17-10-14.png) | ![Screenshot of a matched event item in Plex, displaying metadata](/.img/README/2021-08-18-13-29-00.png) |
+| ![Screenshot of a Plex collection of matches](/.img/README/2021-07-10-17-13-34.png) | ![Screenshot of a matched match item in Plex, displaying metadata](/.img/README/2021-08-18-13-17-33.png) |
 
 ## Installation
 

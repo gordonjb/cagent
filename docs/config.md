@@ -14,6 +14,9 @@
   - ["Add individual matches to a \"Promotion Name\" collection"](#-add-individual-matches-to-a---promotion-name---collection-)
   - ["Add individual matches to a \"Matches\" collection"](#-add-individual-matches-to-a---matches---collection-)
   - ["Card information to be included in the event description: "](#-card-information-to-be-included-in-the-event-description---)
+  - ["Maximum number of reviews to add (0 disables reviews)"](#-maximum-number-of-reviews-to-add--0-disables-reviews--)
+  - ["Include WON Ratings if available when adding reviews (no effect if reviews are disabled)"](#-include-won-ratings-if-available-when-adding-reviews--no-effect-if-reviews-are-disabled--)
+  - ["Remove promotion abbreviaton from event titles: "](#-remove-promotion-abbreviaton-from-event-titles---)
 
 ## Naming files
 
@@ -177,10 +180,28 @@ Event summaries can optionally include the following after the initial summary, 
   - "2"
   - ...
   - "20"
-- **Default:** "15"
+- **Default:** "10"
 
 Matched items can contain reviews from CAGEMATCH users. The maximum number of reviews that will be retrieved can be controlled with this setting. Reviews can also be turned off by selecting "0". This setting does not affect the rating score on items.
 
-- "Card": The results as displayed on an event's "Card" tab (e.g. "x vs y")
-- "Results": The results as displayed on an event's "Results" tab (e.g. "y defeats x")
-- "None": No card or result information is included in the summary
+### "Include WON Ratings if available when adding reviews (no effect if reviews are disabled)"
+
+- **Type:** Tick box (True/False)
+- **Default:** True
+
+If true, when adding reviews, the first review will always be the star rating from the Wresting Observer, if one exists on CAGEMATCH for the match.
+
+### "Remove promotion abbreviaton from event titles: "
+
+- **Type:** List of options
+- **Options:**
+  - "Always"
+  - "When added to \"Promotion Name\" collection"
+  - "Never"
+- **Default:** "When added to \"Promotion Name\" collection"
+
+Event titles on CAGEMATCH include the short promotion name in them, for instance "***WWE*** SummerSlam 2008". The promotion name can be removed, depending on the option selected here:
+
+- "Always": The short name will always be removed from titles (e.g. title will be "Summerslam 2008")
+- "When added to \"Promotion Name\" collection": The short name will be removed from titles if that event is going to be added to a \"Promotion Name\" collection (e.g. title will be "Summerslam 2008" if CAGEnt is also going to add it to a "World Wrestling Entertainment" collection)
+- "Never": The title will not be changed (e.g. title will be "WWE Summerslam 2008")
