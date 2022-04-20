@@ -30,8 +30,8 @@ version-resolver:
     labels:
       - 'minor'
       - 'feature'
-      - 'enhancement'
   patch:
     labels:
       - 'patch'
+      - 'enhancement'
   default: patch
