@@ -218,7 +218,7 @@ class Cagent_Movie(Agent.Movies):
             search_str = os.path.splitext(os.path.basename(pathname))[0]
         Log.Info("[" + AGENT_NAME + "] [search] Searching for \"" + search_str + "\" " + ("manually" if manual else "automatically"))
         # CM ID Regex tester: https://regex101.com/r/6mNdAe/1
-        manual_id_match = re.match(r'^cm-id:([0-9]+:?-?[0-9]+)$', search_str)
+        manual_id_match = re.match(r'^cm-id:\s?([0-9]+:?-?[0-9]+)$', search_str)
         if manual_id_match:
             self.search_by_cm_id(results, lang, manual_id_match.group(1))
             return
