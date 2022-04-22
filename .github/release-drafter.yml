@@ -17,10 +17,15 @@ categories:
     label: 'documentation'
   - title: '🔨 Maintenance'
     label: 'chore'
-change-template: '- $TITLE (#$NUMBER)'
+exclude-labels:
+- 'skip-changelog'
+change-template: '- $TITLE (#$NUMBER) [by @$AUTHOR]'
 template: |
   ## New in CAGEnt v$RESOLVED_VERSION
   $CHANGES
+replacers:
+  - search: ' [by @gordonjb]'
+    replace: ''
 version-resolver:
   major:
     labels:
